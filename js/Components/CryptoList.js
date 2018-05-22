@@ -19,8 +19,8 @@ export default class CryptoList extends React.Component {
 		this.setState({refreshing: true});
 		fetch(this.bitbnsApi).then((response)=>{
 			response.json().then((data)=>{
-				this.state.bitbnsData = data;
-				this.setState({refreshing: false});
+				this.setState({ refreshing: false,
+								bitbnsData:data });
       		});
 		})
 		.catch((err)=>{
