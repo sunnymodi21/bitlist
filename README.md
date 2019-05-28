@@ -1,4 +1,4 @@
-Bitlist is an app to display all cryptocurrency rate in INR built using React Native.
+Bitlist is an app to display all cryptocurrencies in INR, built using React Native.
 
 ## Getting Started
 
