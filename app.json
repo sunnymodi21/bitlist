@@ -1,7 +1,13 @@
 {
+  "name": "bitlist-new",
+  "displayName": "bitlist-new",
   "expo": {
-    "sdkVersion": "27.0.0"
-  },
-  "name": "bitlist",
-  "displayName": "Bitlist"
+    "name": "bitlist-rebirth",
+    "slug": "bitlist-rebirth",
+    "version": "1.0.0",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "description": ""
+  }
 }
