@@ -1,17 +1,20 @@
 import * as React from 'react';
-import { Text, View, StyleSheet, FlatList, RefreshControl, StatusBar, Alert } from 'react-native';
-type CryptoListState = { bitbnsData: Array<any>, refreshing: boolean};
+import { Text, View, StyleSheet, FlatList, RefreshControl, StatusBar, Alert, TouchableOpacity } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AntDesign } from '@expo/vector-icons';
+type CryptoListState = { coins: Array<any>, refreshing: boolean, selectedCoins: Array<string>};
 
 export default class CryptoList extends React.Component<{}, CryptoListState> {
 
-  bitbnsApi = 'https://bitbns.com/order/getTickerAll';
-
+  bitbnsApi = 'https://api.bittrex.com/v3/markets/tickers';
 	
 	constructor(props: any){
-    super(props);
+		super(props);
 		this.state = { 
-      bitbnsData: [],
-			refreshing: false }
+			coins: [],
+			selectedCoins: [],
+			refreshing: false 
+		}
 	}
 
 	componentDidMount(){
@@ -22,27 +25,63 @@ export default class CryptoList extends React.Component<{}, CryptoListState> {
 		this.setState({refreshing: true});
 		fetch(this.bitbnsApi).then((response)=>{
 			response.json().then((data)=>{
-				let coinList: Array<any> = [];
-				data.forEach((item: any)=>{
-					let [coin, details] = Object.entries(item)[0] as any;
-					if(coin.match('USDT')){
-						details.id = coin;
-						coinList.push(details);
-					}
-				})
-				this.setState({ refreshing: false,
-								bitbnsData: coinList });
+				let coinList = data.filter((item: any)=> item.symbol.indexOf('USD'));
+				this.checkSavedList(coinList);
       		});
 		})
 		.catch((err)=>{
-			 Alert.alert('Bitbns api failed');
+			Alert.alert('API failed');
 		});
 	}
 
+	async checkSavedList(coins: any){
+		let savedCoinListStr = await AsyncStorage.getItem('coinList');
+		let savedCoinSet: Set<string>;
+		let coinList;
+		if(savedCoinListStr){
+			savedCoinSet = new Set(JSON.parse(savedCoinListStr));
+		 	coinList = coins.filter((item: any) => savedCoinSet.has(item.symbol))
+		} else {
+			coinList = coins;
+		}
+		this.setState({ 
+			refreshing: false,
+			coins: coinList,
+			selectedCoins: [] 
+		});
+	}
+
+	pushSelectedCoin(symbol: string){
+		let coinList = this.state.selectedCoins;
+		if(coinList.indexOf(symbol)<0){
+			coinList.push(symbol);
+		} else {
+			coinList = coinList.filter((coinSymbol)=> coinSymbol !== symbol)
+		}
+		this.setState({selectedCoins: coinList});
+	}
+
+	async saveCoinList(){
+		await AsyncStorage.setItem('coinList', JSON.stringify(this.state.selectedCoins));
+		this.checkSavedList(this.state.coins);
+	}
+
+	async clearCoinList(){
+		this.setState({selectedCoins: []});
+		await AsyncStorage.removeItem('coinList');
+		this._onRefresh();
+	}
 
 	_renderItem = ({item}: any) => {
-		const coin = item.id;
-		return (<Text style={styles.coin}>{coin} - {item['lastTradePrice']}</Text>)
+		const isSelected = this.state.selectedCoins.indexOf(item.symbol)>=0;
+		const backgroundColor = isSelected ? '#808080' : 'white';
+		return (
+			<Item
+			  item={item}
+			  onPress={() => this.pushSelectedCoin(item.symbol)}
+			  style={{ backgroundColor }}
+			/>
+		  );
 	};
 
 	renderSeparator = () => {
@@ -56,47 +95,93 @@ export default class CryptoList extends React.Component<{}, CryptoListState> {
 	render() {
 		return (
       <View style={styles.container}>
-				<StatusBar hidden={true} />
-				<FlatList        
-					refreshControl={
-					<RefreshControl
-						refreshing={this.state.refreshing}
-						onRefresh={this._onRefresh.bind(this)}
-					/>}
-					keyExtractor={item => item.id}
-					numColumns={2}
-					data={this.state.bitbnsData}
-					renderItem={this._renderItem}
-                    ItemSeparatorComponent={this.renderSeparator}
-                    ListHeaderComponent={<Text style={styles.header}>BitBnS</Text>}
+		<StatusBar hidden={true} />
+		<FlatList        
+			refreshControl={
+			<RefreshControl
+				refreshing={this.state.refreshing}
+				onRefresh={this._onRefresh.bind(this)}
+			/>}
+			keyExtractor={item => item.symbol}
+			numColumns={2}
+			data={this.state.coins}
+			renderItem={this._renderItem}
+			ItemSeparatorComponent={this.renderSeparator}
+			ListHeaderComponent={<Text style={styles.header}>Bittrex</Text>}
         />
+		<View style={styles.floatItem}>
+			<View>
+				{this.state.selectedCoins.length>0 && <TouchableOpacity
+					style={styles.floatButton}
+					onPress={()=> this.saveCoinList()}
+				>				
+					<AntDesign name='save' size={30} color='black' />
+				</TouchableOpacity>}
+			</View>
+			<TouchableOpacity
+				style={styles.floatButton}
+				onPress={()=> this.clearCoinList()}
+			>
+				<AntDesign name='delete' size={30} color='black' />
+			</TouchableOpacity>
+		</View>
       </View>
 		);
 	}
 }
 
 const styles = StyleSheet.create({
-container: {
-  flex: 1,
-  paddingTop: 5
-  },
-  header:{
-    paddingLeft: 20,  
-    color: "white",
-    fontWeight: 'bold',
-    backgroundColor:'#00000f'
-  },
-  coin: {
-    flex: 1,
-    padding:8,
-  },
-  separator: {
-    height: 1,
-    width: "100%",
-    backgroundColor: "#CED0CE",
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  }
+	container: {
+		flex: 1,
+		paddingTop: 5
+	},
+	header:{
+		paddingLeft: 20,  
+		color: 'white',
+		fontWeight: 'bold',
+		backgroundColor:'black'
+	},
+	coinText: {
+		flex: 1,
+		padding:7
+	},
+	separator: {
+		height: 1,
+		width: '100%',
+		backgroundColor: 'gray',
+	},
+	title: {
+		fontSize: 20,
+		fontWeight: 'bold',
+	},
+	floatButton: {
+		borderWidth:1,
+		borderColor:'rgba(0,0,0,0.2)',
+		alignItems:'center',
+		justifyContent:'center',
+		width: 70,      
+		height:70,
+		backgroundColor:'#fff',
+		borderRadius:100,
+		zIndex:1,
+		margin: 5
+	},
+	floatItem: {
+		right: 10,
+		bottom: 10,
+		position:'absolute'
+	},
+	coinItem: {
+		borderWidth:1,
+		borderColor:'rgba(0,0,0,0.2)',
+	}
 });
+
+const Item = ({ item, onPress, style }: any) => {
+	const coin = item.symbol;
+	return (
+		<TouchableOpacity onPress={onPress} style={[styles.coinItem,style]}>
+			<Text style={styles.coinText}>{coin} - {item['lastTradeRate']}</Text>
+		</TouchableOpacity>  
+	  )
+};
