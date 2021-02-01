@@ -6,7 +6,7 @@ type CryptoListState = { coins: Array<any>, refreshing: boolean, selectedCoins: 
 
 export default class CryptoList extends React.Component<{}, CryptoListState> {
 
-  bitbnsApi = 'https://api.bittrex.com/v3/markets/tickers';
+  bitApi = 'https://api.bittrex.com/v3/markets/tickers';
 	
 	constructor(props: any){
 		super(props);
@@ -23,10 +23,9 @@ export default class CryptoList extends React.Component<{}, CryptoListState> {
 	
 	_onRefresh() {
 		this.setState({refreshing: true});
-		fetch(this.bitbnsApi).then((response)=>{
+		fetch(this.bitApi).then((response)=>{
 			response.json().then((data)=>{
-				let coinList = data.filter((item: any)=> item.symbol.indexOf('USD'));
-				this.checkSavedList(coinList);
+				this.checkSavedList(data);
       		});
 		})
 		.catch((err)=>{
